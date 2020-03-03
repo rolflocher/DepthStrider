@@ -162,25 +162,36 @@ class GameViewController: UIViewController {
         
     }
     
+    var lastContour: [CGPoint]? = nil
+    
     var currentCenters = [Float]()
     var visibleFrames = Int()
     
     func watchFrames() {
+        lastContour = nil
         db?.collection("depth").order(by: "timestamp", descending: true).limit(to: 1).addSnapshotListener({ (snapshot, error) in
             guard let snap = snapshot,
                 let doc = snap.documents.first
             else { return }
-            let node = self.buildFrameNode(doc: doc.data())
+            
             let distance: Float = 400.0
-            let duration = 60.0
+            let duration = 64.0
             self.visibleFrames = Int(duration/5)
             
-            node.position = SCNVector3Make(0, 0, -distance)
-            self.moveFrame(node: node, distance: Double(distance), duration: duration)
-            self.fadeInNode(node: node, finalOpacity: 0.7, duration: 3)
-            self.removeFrameAfter(node: node, duration: duration)
+            if self.currentCenters.count > self.visibleFrames {
+                
+            }
             
-            self.scnView.scene?.rootNode.addChildNode(node)
+            let newContour = self.buildContour(doc: doc.data())
+            if let lastContour = self.lastContour {
+                let node = self.buildBandNode(firstContour: newContour, secondContour: lastContour)
+                node.position = SCNVector3Make(0, 0, -distance)
+                self.moveFrame(node: node, distance: Double(distance+40), duration: duration)
+                self.fadeInNode(node: node, finalOpacity: 0.7, duration: 3)
+                self.removeFrameAfter(node: node, duration: duration)
+                self.scnView.scene?.rootNode.addChildNode(node)
+            }
+            self.lastContour = newContour
         })
     }
     
@@ -203,8 +214,111 @@ class GameViewController: UIViewController {
         node.runAction(action)
     }
     
-    func drawBand(firstRing first: [CGPoint], secondRing second: [CGPoint]) {
+    func buildBandNode(firstContour first: [CGPoint], secondContour second: [CGPoint]) -> SCNNode {
+        let isFirstMax = first.count > second.count
+        let max = isFirstMax ? first.count : second.count
         
+        var vertices = [SCNVector3]()
+        var indices = [UInt16]()
+        var elements = [SCNGeometryElement]()
+        var sources = [SCNGeometrySource]()
+        var count: UInt16 = 0
+        for index in 0..<max {
+            if index != 0 {
+                vertices.append(contentsOf: [
+                    SCNVector3(first[index].x, first[index].y, -40),
+                    SCNVector3(second[index].x, second[index].y, 0),
+                    SCNVector3(first[index-1].x, first[index-1].y, -40),
+                    SCNVector3(second[index-1].x, second[index-1].y, 0),
+                ])
+                indices.append(contentsOf: [
+                    count+0, count+1, count+3,
+                    count+0, count+3, count+2
+                ])
+                count += 4
+            }
+            
+        }
+        
+        let element = SCNGeometryElement(indices: indices, primitiveType: .triangles)
+        let source = SCNGeometrySource(vertices: vertices)
+        elements.append(element)
+        sources.append(source)
+        let geometry = SCNGeometry(sources: sources, elements: elements)
+        let mat = SCNMaterial()
+        mat.diffuse.contents = UIColor.cyan
+        mat.isDoubleSided = true
+        geometry.materials = [mat]
+        let node = SCNNode(geometry: geometry)
+        
+        //let scnView = self.view as! SCNView
+
+        //scnView.scene?.rootNode.addChildNode(node)
+        
+        print(node.boundingBox)
+        return node
+    }
+    
+    func buildContour(doc: [String:Any]) -> [CGPoint] {
+        guard let asks = doc["asks"] as? [String:Any],
+                    let bids = doc["bids"] as? [String:Any]
+        else { return [CGPoint]() }
+        
+        let sortedAsks = asks.sorted(by: { $0.key < $1.key})
+        let sortedBids = bids.sorted(by: { $0.key > $1.key})
+        guard let baseBidPrice = Double(sortedBids.first!.key),
+            let baseAskPrice = Double(sortedAsks.first!.key),
+            let baseAmount = Double(sortedBids.first!.value as! String)
+        else { return [CGPoint]() }
+        
+        var finalContour = [CGPoint]()
+        
+        if startPrice == nil { startPrice = baseBidPrice }
+//                let path = UIBezierPath()
+        var askPath = [CGPoint]()
+        var bidPath = [CGPoint]()
+        
+        bidPath.append(CGPoint(x: baseBidPrice - startPrice!, y: 0))
+//        path.move(to: CGPoint(x: baseBidPrice - startPrice!, y: 0))
+        
+        var totalBid = 0.0
+        var lastPrice = 0.0
+        var lastAmount = 0.0
+        for (price, amount) in sortedBids {
+            totalBid += Double(amount as! String)!
+//            path.addLine(to: CGPoint(x: Double(price)! - startPrice!, y: totalBid))
+            bidPath.append(CGPoint(x: Double(price)! - startPrice!, y: totalBid))
+            lastPrice = Double(price)! - startPrice!
+            lastAmount = totalBid
+//            print("x \(Double(price)! - baseBidPrice) y: \(totalBid)")
+        }
+        bidPath.append(CGPoint(x: lastPrice-150, y: lastAmount))
+        finalContour.append(contentsOf: bidPath.reversed())
+//        path.addLine(to: CGPoint(x: lastPrice-150, y: lastAmount))
+//        path.addLine(to: CGPoint(x: lastPrice-150, y: 0))
+//        path.addLine(to: CGPoint(x: baseBidPrice - startPrice!, y: 0))
+        
+        askPath.append(CGPoint(x: baseAskPrice - startPrice!, y: 0))
+//        path.move(to: CGPoint(x: baseAskPrice - startPrice!, y: 0))
+        var totalAsk = 0.0
+        for (price, amount) in sortedAsks {
+            totalAsk += Double(amount as! String)!
+            askPath.append(CGPoint(x: Double(price)! - startPrice!, y: totalAsk))
+//            path.addLine(to: CGPoint(x: Double(price)! - startPrice!, y: totalAsk))
+            lastPrice = Double(price)! - startPrice!
+            lastAmount = totalAsk
+        }
+        askPath.append(CGPoint(x: lastPrice+150, y: lastAmount))
+        finalContour.append(contentsOf: askPath)
+        
+        let center = (baseAskPrice + baseBidPrice)/2 - startPrice!
+        currentCenters.append(Float(center))
+        if currentCenters.count > visibleFrames+1 { currentCenters.removeFirst() }
+        
+        return finalContour
+//        path.addLine(to: CGPoint(x: lastPrice+150, y: lastAmount))
+//        path.addLine(to: CGPoint(x: lastPrice+150, y: 0))
+//        path.addLine(to: CGPoint(x: baseAskPrice - startPrice!, y: 0))
     }
     
     var startPrice: Double? = nil
