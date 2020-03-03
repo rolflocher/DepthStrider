@@ -20,17 +20,88 @@
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                 <color key="backgroundColor" systemColor="systemBackgroundColor" cocoaTouchSystemColor="whiteColor"/>
                             </sceneKitView>
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="ellipsis" catalog="system" translatesAutoresizingMaskIntoConstraints="NO" id="LLx-IL-F7P">
+                                <rect key="frame" x="10" y="829" width="40" height="25.5"/>
+                                <color key="tintColor" red="0.99613519559999997" green="0.99613519559999997" blue="0.99613519559999997" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="40" id="gcj-CX-Jfq"/>
+                                    <constraint firstAttribute="width" secondItem="LLx-IL-F7P" secondAttribute="height" multiplier="17:17" id="xBk-gJ-diV"/>
+                                </constraints>
+                            </imageView>
+                            <visualEffectView opaque="NO" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="H1M-B6-V0j">
+                                <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
+                                <view key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" insetsLayoutMarginsFromSafeArea="NO" id="Y1r-bA-Gqp">
+                                    <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                    <subviews>
+                                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Depth Strider" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="cKG-a3-ayy">
+                                            <rect key="frame" x="15" y="91" width="384" height="143"/>
+                                            <constraints>
+                                                <constraint firstAttribute="height" constant="143" id="4vt-59-vTF"/>
+                                            </constraints>
+                                            <fontDescription key="fontDescription" name="Zapfino" family="Zapfino" pointSize="43"/>
+                                            <nil key="textColor"/>
+                                            <nil key="highlightedColor"/>
+                                        </label>
+                                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Spectate" textAlignment="right" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="pAx-uE-B6Q">
+                                            <rect key="frame" x="234" y="592" width="152" height="63"/>
+                                            <constraints>
+                                                <constraint firstAttribute="width" constant="152" id="jAq-3P-W8t"/>
+                                            </constraints>
+                                            <fontDescription key="fontDescription" name="Zapfino" family="Zapfino" pointSize="25"/>
+                                            <color key="textColor" white="0.33333333333333331" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                            <nil key="highlightedColor"/>
+                                        </label>
+                                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Continue" textAlignment="right" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="Kvx-yo-L2Z">
+                                            <rect key="frame" x="218" y="668" width="168" height="63"/>
+                                            <constraints>
+                                                <constraint firstAttribute="width" constant="168" id="Fq0-o4-8DD"/>
+                                                <constraint firstAttribute="height" constant="63" id="pXh-Nh-DGQ"/>
+                                            </constraints>
+                                            <fontDescription key="fontDescription" name="Zapfino" family="Zapfino" pointSize="25"/>
+                                            <color key="textColor" white="0.33333333333333331" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                            <nil key="highlightedColor"/>
+                                        </label>
+                                    </subviews>
+                                    <constraints>
+                                        <constraint firstItem="Kvx-yo-L2Z" firstAttribute="height" secondItem="pAx-uE-B6Q" secondAttribute="height" id="2j8-ro-BOQ"/>
+                                        <constraint firstItem="cKG-a3-ayy" firstAttribute="leading" secondItem="Y1r-bA-Gqp" secondAttribute="leading" constant="15" id="NOC-Ys-gwf"/>
+                                        <constraint firstItem="cKG-a3-ayy" firstAttribute="top" secondItem="Y1r-bA-Gqp" secondAttribute="top" constant="91" id="Rlo-db-dIq"/>
+                                        <constraint firstAttribute="bottom" secondItem="Kvx-yo-L2Z" secondAttribute="bottom" constant="165" id="XR3-Ui-gF2"/>
+                                        <constraint firstAttribute="trailing" secondItem="cKG-a3-ayy" secondAttribute="trailing" constant="15" id="bfG-Eq-eMv"/>
+                                        <constraint firstAttribute="trailing" secondItem="Kvx-yo-L2Z" secondAttribute="trailing" constant="28" id="jAE-G9-r7U"/>
+                                        <constraint firstItem="Kvx-yo-L2Z" firstAttribute="trailing" secondItem="pAx-uE-B6Q" secondAttribute="trailing" id="kLo-dV-ty2"/>
+                                        <constraint firstItem="Kvx-yo-L2Z" firstAttribute="top" secondItem="pAx-uE-B6Q" secondAttribute="bottom" constant="13" id="lbX-O3-aoc"/>
+                                    </constraints>
+                                </view>
+                                <blurEffect style="light"/>
+                            </visualEffectView>
                         </subviews>
                         <color key="backgroundColor" systemColor="systemBackgroundColor" cocoaTouchSystemColor="whiteColor"/>
+                        <constraints>
+                            <constraint firstItem="Tj5-JT-XVI" firstAttribute="trailing" secondItem="H1M-B6-V0j" secondAttribute="trailing" id="Rsb-sG-6Wl"/>
+                            <constraint firstItem="H1M-B6-V0j" firstAttribute="top" secondItem="U5C-f5-yhN" secondAttribute="top" id="TP7-Es-VkN"/>
+                            <constraint firstItem="Tj5-JT-XVI" firstAttribute="bottom" secondItem="LLx-IL-F7P" secondAttribute="bottom" id="bz2-cT-9v9"/>
+                            <constraint firstItem="LLx-IL-F7P" firstAttribute="leading" secondItem="Tj5-JT-XVI" secondAttribute="leading" constant="10" id="fYe-GW-xgi"/>
+                            <constraint firstItem="H1M-B6-V0j" firstAttribute="leading" secondItem="Tj5-JT-XVI" secondAttribute="leading" id="lRz-ok-9CS"/>
+                            <constraint firstAttribute="bottom" secondItem="H1M-B6-V0j" secondAttribute="bottom" id="rGa-av-Hbg"/>
+                        </constraints>
                         <viewLayoutGuide key="safeArea" id="Tj5-JT-XVI"/>
                     </view>
                     <connections>
+                        <outlet property="continueLabel" destination="Kvx-yo-L2Z" id="4by-jZ-paK"/>
+                        <outlet property="pauseImage" destination="LLx-IL-F7P" id="NSO-49-gZI"/>
+                        <outlet property="pauseMenu" destination="H1M-B6-V0j" id="kni-o3-rU4"/>
                         <outlet property="scnView" destination="UjJ-fA-hrc" id="Kcy-fW-ZNf"/>
+                        <outlet property="spectateLabel" destination="pAx-uE-B6Q" id="ccJ-9q-NnF"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="SZV-WD-TEh" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="139" y="117"/>
+            <point key="canvasLocation" x="137.68115942028987" y="116.51785714285714"/>
         </scene>
     </scenes>
+    <resources>
+        <image name="ellipsis" catalog="system" width="64" height="18"/>
+    </resources>
 </document>

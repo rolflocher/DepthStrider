@@ -15,6 +15,14 @@ class GameViewController: UIViewController {
     
     @IBOutlet var scnView: SCNView!
     
+    @IBOutlet var pauseMenu: UIVisualEffectView!
+    
+    @IBOutlet var spectateLabel: UILabel!
+    
+    @IBOutlet var continueLabel: UILabel!
+    
+    @IBOutlet var pauseImage: UIImageView!
+    
     var db: Firestore? = nil
 
     override func viewDidLoad() {
@@ -41,14 +49,14 @@ class GameViewController: UIViewController {
         
         // retrieve the ship node
         let ship = scene.rootNode.childNode(withName: "ship", recursively: true)!
-        
+        ship.opacity = 0
         // create and add a camera to the scene
         let cameraNode = SCNNode()
         cameraNode.camera = SCNCamera()
         ship.addChildNode(cameraNode)
         // place the camera
         cameraNode.position = SCNVector3(x: 0, y: 28, z: 15)
-        
+        cameraNode.camera!.zFar = 400
         // animate the 3d object
 //        ship.runAction(SCNAction.repeatForever(SCNAction.rotateBy(x: 0, y: 2, z: 0, duration: 1)))
         
@@ -56,8 +64,9 @@ class GameViewController: UIViewController {
 //        let scnView = self.view as! SCNView
         
         // set the scene to the view
+        scene.fogEndDistance = 400
+        scene.fogStartDistance = 300
         scnView.scene = scene
-        
         // allows the user to manipulate the camera
         scnView.allowsCameraControl = false
         
@@ -67,17 +76,94 @@ class GameViewController: UIViewController {
         // configure the view
         scnView.backgroundColor = UIColor.black
         
-        // add a tap gesture recognizer
-//        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
-//        scnView.addGestureRecognizer(tapGesture)
+        let pauseTap = UITapGestureRecognizer(target: self, action: #selector(pauseTapped))
+        pauseImage.addGestureRecognizer(pauseTap)
+        pauseImage.isUserInteractionEnabled = true
         
-//        let tapGesture0 = UILongPressGestureRecognizer(target: self, action: #selector(handleTap(_:)))
-//        tapGesture0.minimumPressDuration = .zero
-//        tapGesture0.allowableMovement = .greatestFiniteMagnitude
-//        scnView.addGestureRecognizer(tapGesture0)
+        let continueTap = UITapGestureRecognizer(target: self, action: #selector(continueTapped))
+        continueLabel.addGestureRecognizer(continueTap)
+        continueLabel.isUserInteractionEnabled = true
         
+        let spectateTap = UITapGestureRecognizer(target: self, action: #selector(spectateTapped))
+        spectateLabel.addGestureRecognizer(spectateTap)
+        spectateLabel.isUserInteractionEnabled = true
+        
+        let flyTap = UIPanGestureRecognizer(target: self, action: #selector(handleTap(_:)))
+        scnView.addGestureRecognizer(flyTap)
+        scnView.isUserInteractionEnabled = true
+        
+        //startFlying()
+        startSpectating()
         watchFrames()
     }
+    
+    @objc func continueTapped() {
+        UIView.animate(withDuration: 1, animations: {
+            self.pauseMenu.alpha = 0
+        }) { (_) in
+            self.pauseMenu.isHidden = true
+        }
+        let ship = scnView.scene!.rootNode.childNode(withName: "ship", recursively: true)!
+        fadeInNode(node: ship, finalOpacity: 1, duration: 2)
+        startFlying()
+    }
+    
+    @objc func spectateTapped() {
+        UIView.animate(withDuration: 1, animations: {
+            self.pauseMenu.alpha = 0
+        }) { (_) in
+            self.pauseMenu.isHidden = true
+        }
+        startSpectating()
+    }
+    
+    @objc func pauseTapped() {
+        UIView.animate(withDuration: 1) {
+            self.pauseMenu.isHidden = false
+            self.pauseMenu.alpha = 1
+        }
+    }
+    
+    func startFlying() {
+        let ship = scnView.scene!.rootNode.childNode(withName: "ship", recursively: true)!
+        //let action = SCNAction.move(to: <#T##SCNVector3#>, duration: <#T##TimeInterval#>)
+        fadeInNode(node: ship, finalOpacity: 1, duration: 3)
+        shouldStopFollowingFrames = true
+    }
+    
+    func startSpectating() {
+        let ship = scnView.scene!.rootNode.childNode(withName: "ship", recursively: true)!
+        let action = SCNAction.fadeOut(duration: 3)
+        ship.runAction(action)
+        if shouldStopFollowingFrames {
+            shouldStopFollowingFrames = false
+            followFrames()
+        }
+    }
+    
+    var shouldStopFollowingFrames = true
+    
+    func followFrames() {
+        if shouldStopFollowingFrames { return }
+        
+        if currentCenters.count > visibleFrames {
+            let ship = scnView.scene!.rootNode.childNode(withName: "ship", recursively: true)!
+            var ref = ship.position
+            ref.x = currentCenters.first!
+            let action = SCNAction.move(to: ref, duration: 1)
+            ship.runAction(action)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now()+5) {
+            self.followFrames()
+        }
+    }
+    
+    func loadFrames() {
+        
+    }
+    
+    var currentCenters = [Float]()
+    var visibleFrames = Int()
     
     func watchFrames() {
         db?.collection("depth").order(by: "timestamp", descending: true).limit(to: 1).addSnapshotListener({ (snapshot, error) in
@@ -85,11 +171,40 @@ class GameViewController: UIViewController {
                 let doc = snap.documents.first
             else { return }
             let node = self.buildFrameNode(doc: doc.data())
+            let distance: Float = 400.0
+            let duration = 60.0
+            self.visibleFrames = Int(duration/5)
             
-//            let scnView = self.view as! SCNView
+            node.position = SCNVector3Make(0, 0, -distance)
+            self.moveFrame(node: node, distance: Double(distance), duration: duration)
+            self.fadeInNode(node: node, finalOpacity: 0.7, duration: 3)
+            self.removeFrameAfter(node: node, duration: duration)
+            
             self.scnView.scene?.rootNode.addChildNode(node)
-            
         })
+    }
+    
+    func removeFrameAfter(node: SCNNode, duration dur: TimeInterval) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + dur) {
+            node.removeFromParentNode()
+        }
+    }
+    
+    func fadeInNode(node: SCNNode, finalOpacity: Float, duration dur: Double) {
+        node.opacity = 0
+        let action1 = SCNAction.fadeOpacity(to: CGFloat(finalOpacity), duration: dur)
+        action1.timingMode = .linear
+        node.runAction(action1)
+    }
+    
+    func moveFrame(node: SCNNode, distance: Double, duration dur: TimeInterval) {
+        let action = SCNAction.move(by: SCNVector3(0, 0, distance), duration: dur)
+        action.timingMode = .linear
+        node.runAction(action)
+    }
+    
+    func drawBand(firstRing first: [CGPoint], secondRing second: [CGPoint]) {
+        
     }
     
     var startPrice: Double? = nil
@@ -101,37 +216,41 @@ class GameViewController: UIViewController {
         
         let sortedAsks = asks.sorted(by: { $0.key < $1.key})
         let sortedBids = bids.sorted(by: { $0.key > $1.key})
-        guard let basePrice = Double(sortedBids.first!.key),
+        guard let baseBidPrice = Double(sortedBids.first!.key),
+            let baseAskPrice = Double(sortedAsks.first!.key),
             let baseAmount = Double(sortedBids.first!.value as! String)
         else { return SCNNode() }
         
-        if startPrice == nil { startPrice = basePrice }
+        if startPrice == nil { startPrice = baseBidPrice }
         
         let path = UIBezierPath()
-        path.move(to: CGPoint(x: 0, y: 0))
+        path.move(to: CGPoint(x: baseBidPrice - startPrice!, y: 0))
         
         var totalBid = 0.0
         var lastPrice = 0.0
+        var lastAmount = 0.0
         for (price, amount) in sortedBids {
             totalBid += Double(amount as! String)!
-            path.addLine(to: CGPoint(x: Double(price)! - basePrice, y: totalBid))
-            lastPrice = Double(price)! - basePrice
-//            print("x \(Double(price)! - basePrice) y: \(totalBid)")
+            path.addLine(to: CGPoint(x: Double(price)! - startPrice!, y: totalBid))
+            lastPrice = Double(price)! - startPrice!
+            lastAmount = totalBid
+//            print("x \(Double(price)! - baseBidPrice) y: \(totalBid)")
         }
-        path.addLine(to: CGPoint(x: lastPrice, y: 0))
-        path.addLine(to: CGPoint(x: 0, y: 0))
+        path.addLine(to: CGPoint(x: lastPrice-150, y: lastAmount))
+        path.addLine(to: CGPoint(x: lastPrice-150, y: 0))
+        path.addLine(to: CGPoint(x: baseBidPrice - startPrice!, y: 0))
         
-        
-        path.move(to: CGPoint(x: 0, y: 0))
+        path.move(to: CGPoint(x: baseAskPrice - startPrice!, y: 0))
         var totalAsk = 0.0
         for (price, amount) in sortedAsks {
             totalAsk += Double(amount as! String)!
-            path.addLine(to: CGPoint(x: Double(price)! - basePrice, y: totalAsk))
-            lastPrice = Double(price)! - basePrice
-//            print("x \(Double(price)! - basePrice) y: \(totalBid)")
+            path.addLine(to: CGPoint(x: Double(price)! - startPrice!, y: totalAsk))
+            lastPrice = Double(price)! - startPrice!
+            lastAmount = totalAsk
         }
-        path.addLine(to: CGPoint(x: lastPrice, y: 0))
-        path.addLine(to: CGPoint(x: 0, y: 0))
+        path.addLine(to: CGPoint(x: lastPrice+150, y: lastAmount))
+        path.addLine(to: CGPoint(x: lastPrice+150, y: 0))
+        path.addLine(to: CGPoint(x: baseAskPrice - startPrice!, y: 0))
         
         
         let shape = SCNShape()
@@ -141,120 +260,122 @@ class GameViewController: UIViewController {
         shape.materials = [mat]
         shape.path = path
         let node = SCNNode(geometry: shape)
-        node.position = SCNVector3Make(0, 0, -300)
         
-        let action = SCNAction.move(by: SCNVector3(0, 0, 300), duration: 30)
-        action.timingMode = .linear
-        node.runAction(action)
+        let formattedPrice = String(format: "$%.02f", (baseAskPrice + baseBidPrice)/2)
+        let textGeo = SCNText(string: formattedPrice, extrusionDepth: 0)
+        textGeo.font = UIFont.systemFont(ofSize: 10)
+        textGeo.materials = [mat]
+        let textNode = SCNNode(geometry: textGeo)
+        textNode.scale = SCNVector3(0.5, 0.5, 0.5)
         
-        node.opacity = 0
-        let action1 = SCNAction.fadeOpacity(to: 0.7, duration: 1)
-        action1.timingMode = .linear
-        node.runAction(action1)
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
-            node.removeFromParentNode()
-        }
-        
+        let center = (baseAskPrice + baseBidPrice)/2 - startPrice!
+        currentCenters.append(Float(center))
+        if currentCenters.count > visibleFrames+1 { currentCenters.removeFirst() }
+        let textX = center - 11
+        textNode.position = SCNVector3(textX, -8, 0)
+        node.addChildNode(textNode)
         return node
     }
     
-    func moveShipWithDelay0(action: SCNAction) {
-        if touchesChanged || touchesEnded { return }
-        let ship = scnView.scene!.rootNode.childNode(withName: "ship", recursively: true)!
-        ship.runAction(self.action)
-        DispatchQueue.main.asyncAfter(deadline: .now()+0.1) {
-            self.moveShipWithDelay0(action: self.action)
-        }
-    }
-    
-    var isMoving = false
+//    func moveShipWithDelay0(action: SCNAction) {
+//        if touchesChanged || touchesEnded { return }
+//        let ship = scnView.scene!.rootNode.childNode(withName: "ship", recursively: true)!
+//        ship.runAction(self.action)
+//        DispatchQueue.main.asyncAfter(deadline: .now()+0.1) {
+//            self.moveShipWithDelay0(action: self.action)
+//        }
+//    }
+//
+//    var isMoving = false
+//
+//    func moveShipWithDelay1(action: SCNAction) {
+//        isMoving = true
+//        if touchesEnded { return }
+//        let ship = scnView.scene!.rootNode.childNode(withName: "ship", recursively: true)!
+//        ship.runAction(self.action)
+//        DispatchQueue.main.asyncAfter(deadline: .now()+0.1) {
+//            self.moveShipWithDelay1(action: self.action)
+//        }
+//    }
 
-    func moveShipWithDelay1(action: SCNAction) {
-        isMoving = true
-        if touchesEnded { return }
-        let ship = scnView.scene!.rootNode.childNode(withName: "ship", recursively: true)!
-        ship.runAction(self.action)
-        DispatchQueue.main.asyncAfter(deadline: .now()+0.1) {
-            self.moveShipWithDelay1(action: self.action)
-        }
-    }
-
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        touchesEnded = true
-        touchesChanged = true
-    }
-    
-    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        touchesChanged = true
-        touchesEnded = true
-    }
-
-    var touchesChanged = true
-    var touchesEnded = true
-
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        super.touchesBegan(touches, with: event)
-        touchesChanged = false
-        touchesEnded = false
-        isMoving = false
-
-        guard let touch = touches.first else { return }
-
-        //let scnView = self.view as! SCNView
-        let p = touch.location(in: scnView)
-
-        let dur = 0.5
-        let x = p.x - 210
-        let y = 618 - p.y
-
-        action = SCNAction.move(by: SCNVector3(x/180, y/180, 0), duration: dur)
-        action.timingMode = .easeInEaseOut
-
-        moveShipWithDelay0(action: action)
-    }
-    
-    var lastTap = Date()
-    var action = SCNAction()
-
-    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        if Date().timeIntervalSince(lastTap) < 0.1 { return }
-        lastTap = Date()
-        
-        guard let touch = touches.first else { return }
-        touchesChanged = true
-
-        //let scnView = self.view as! SCNView
-        let p = touch.location(in: scnView)
-
-
-        let dur = 0.5
-        let x = p.x - 210
-        let y = 618 - p.y
-
-        action = SCNAction.move(by: SCNVector3(x/180, y/180, 0), duration: dur)
-        action.timingMode = .easeInEaseOut
-        if !isMoving {
-            moveShipWithDelay1(action: action)
-        }
-        
-    }
+//    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+//        touchesEnded = true
+//        touchesChanged = true
+//    }
+//
+//    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+//        touchesChanged = true
+//        touchesEnded = true
+//    }
+//
+//    var touchesChanged = true
+//    var touchesEnded = true
+//
+//    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+//        super.touchesBegan(touches, with: event)
+//        touchesChanged = false
+//        touchesEnded = false
+//        isMoving = false
+//
+//        guard let touch = touches.first else { return }
+//
+//        //let scnView = self.view as! SCNView
+//        let p = touch.location(in: scnView)
+//
+//        let dur = 0.5
+//        let x = p.x - 210
+//        let y = 618 - p.y
+//
+//        action = SCNAction.move(by: SCNVector3(x/180, y/180, 0), duration: dur)
+//        action.timingMode = .easeInEaseOut
+//
+//        moveShipWithDelay0(action: action)
+//    }
+//
+//    var lastTap = Date()
+//    var action = SCNAction()
+//
+//    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+//        if Date().timeIntervalSince(lastTap) < 0.1 { return }
+//        lastTap = Date()
+//
+//        guard let touch = touches.first else { return }
+//        touchesChanged = true
+//
+//        //let scnView = self.view as! SCNView
+//        let p = touch.location(in: scnView)
+//
+//
+//        let dur = 0.5
+//        let x = p.x - 210
+//        let y = 618 - p.y
+//
+//        action = SCNAction.move(by: SCNVector3(x/180, y/180, 0), duration: dur)
+//        action.timingMode = .easeInEaseOut
+//        if !isMoving {
+//            moveShipWithDelay1(action: action)
+//        }
+//
+//    }
     
     @objc
-    func handleTap(_ gestureRecognize: UIGestureRecognizer) {
+    func handleTap(_ gestureRecognize: UIPanGestureRecognizer) {
         // retrieve the SCNView
         //let scnView = self.view as! SCNView
         
         // check what nodes are tapped
-        let p = gestureRecognize.location(in: scnView)
+//        let p = gestureRecognize.location(in: scnView)
+        let translation = gestureRecognize.translation(in: scnView)
+        let x = translation.x
+        let y = -translation.y
         
         let ship = scnView.scene!.rootNode.childNode(withName: "ship", recursively: true)!
         
         let dur = 0.5
-        let x = p.x - 210
-        let y = 618 - p.y
+//        let x = p.x - 210
+//        let y = 618 - p.y
         
-        let action = SCNAction.move(by: SCNVector3(x/30, y/30, 0), duration: dur)
+        let action = SCNAction.move(by: SCNVector3(x/120, y/120, 0), duration: dur)
         action.timingMode = .easeInEaseOut
         ship.runAction(action)
         
@@ -305,7 +426,7 @@ class GameViewController: UIViewController {
     }
     
     override var shouldAutorotate: Bool {
-        return true
+        return false
     }
     
     override var prefersStatusBarHidden: Bool {
@@ -314,9 +435,9 @@ class GameViewController: UIViewController {
     
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
         if UIDevice.current.userInterfaceIdiom == .phone {
-            return .allButUpsideDown
+            return .portrait
         } else {
-            return .all
+            return .portrait
         }
     }
 
