@@ -30,50 +30,36 @@ class GameViewController: UIViewController {
         
         db = Firestore.firestore()
         
-        // create a new scene
         let scene = SCNScene(named: "art.scnassets/ship.scn")!
         
-        // create and add a light to the scene
-        let lightNode = SCNNode()
-        lightNode.light = SCNLight()
-        lightNode.light!.type = .omni
-        lightNode.position = SCNVector3(x: 0, y: 10, z: 10)
-        scene.rootNode.addChildNode(lightNode)
-        
-        // create and add an ambient light to the scene
         let ambientLightNode = SCNNode()
         ambientLightNode.light = SCNLight()
         ambientLightNode.light!.type = .ambient
         ambientLightNode.light!.color = UIColor.darkGray
         scene.rootNode.addChildNode(ambientLightNode)
         
-        // retrieve the ship node
-        let ship = scene.rootNode.childNode(withName: "ship", recursively: true)!
-        ship.opacity = 0
-        // create and add a camera to the scene
         let cameraNode = SCNNode()
         cameraNode.camera = SCNCamera()
-        ship.addChildNode(cameraNode)
-        // place the camera
         cameraNode.position = SCNVector3(x: 0, y: 28, z: 15)
         cameraNode.camera!.zFar = 400
-        // animate the 3d object
+        
+        let lightNode = SCNNode()
+        lightNode.light = SCNLight()
+        lightNode.light!.type = .omni
+        lightNode.position = SCNVector3(x: 0, y: 10, z: 10)
+        cameraNode.addChildNode(lightNode)
+        
+        let ship = scene.rootNode.childNode(withName: "ship", recursively: true)!
+        ship.opacity = 0
+        ship.addChildNode(cameraNode)
 //        ship.runAction(SCNAction.repeatForever(SCNAction.rotateBy(x: 0, y: 2, z: 0, duration: 1)))
         
-        // retrieve the SCNView
-//        let scnView = self.view as! SCNView
-        
-        // set the scene to the view
         scene.fogEndDistance = 400
         scene.fogStartDistance = 300
         scnView.scene = scene
-        // allows the user to manipulate the camera
+        
         scnView.allowsCameraControl = false
-        
-        // show statistics such as fps and timing information
         scnView.showsStatistics = false
-        
-        // configure the view
         scnView.backgroundColor = UIColor.black
         
         let pauseTap = UITapGestureRecognizer(target: self, action: #selector(pauseTapped))
@@ -91,8 +77,7 @@ class GameViewController: UIViewController {
         let flyTap = UIPanGestureRecognizer(target: self, action: #selector(handleTap(_:)))
         scnView.addGestureRecognizer(flyTap)
         scnView.isUserInteractionEnabled = true
-        
-        //startFlying()
+                
         startSpectating()
         watchFrames()
     }
@@ -169,14 +154,14 @@ class GameViewController: UIViewController {
     
     func watchFrames() {
         lastContour = nil
-        db?.collection("depth").order(by: "timestamp", descending: true).limit(to: 1).addSnapshotListener({ (snapshot, error) in
+        db?.collection("depth2").order(by: "timestamp", descending: true).limit(to: 1).addSnapshotListener({ (snapshot, error) in
             guard let snap = snapshot,
                 let doc = snap.documents.first
             else { return }
             
             let distance: Float = 400.0
-            let duration = 64.0
-            self.visibleFrames = Int(duration/5)
+            let duration = 65.5
+            self.visibleFrames = Int(duration/5) - 3
             
             if self.currentCenters.count > self.visibleFrames {
                 
@@ -186,7 +171,7 @@ class GameViewController: UIViewController {
             if let lastContour = self.lastContour {
                 let node = self.buildBandNode(firstContour: newContour, secondContour: lastContour)
                 node.position = SCNVector3Make(0, 0, -distance)
-                self.moveFrame(node: node, distance: Double(distance+40), duration: duration)
+                self.moveFrame(node: node, distance: Double(distance+55), duration: duration)
                 self.fadeInNode(node: node, finalOpacity: 0.7, duration: 3)
                 self.removeFrameAfter(node: node, duration: duration)
                 self.scnView.scene?.rootNode.addChildNode(node)
@@ -237,7 +222,6 @@ class GameViewController: UIViewController {
                 ])
                 count += 4
             }
-            
         }
         
         let element = SCNGeometryElement(indices: indices, primitiveType: .triangles)
@@ -251,11 +235,6 @@ class GameViewController: UIViewController {
         geometry.materials = [mat]
         let node = SCNNode(geometry: geometry)
         
-        //let scnView = self.view as! SCNView
-
-        //scnView.scene?.rootNode.addChildNode(node)
-        
-        print(node.boundingBox)
         return node
     }
     
@@ -267,44 +246,34 @@ class GameViewController: UIViewController {
         let sortedAsks = asks.sorted(by: { $0.key < $1.key})
         let sortedBids = bids.sorted(by: { $0.key > $1.key})
         guard let baseBidPrice = Double(sortedBids.first!.key),
-            let baseAskPrice = Double(sortedAsks.first!.key),
-            let baseAmount = Double(sortedBids.first!.value as! String)
+            let baseAskPrice = Double(sortedAsks.first!.key)
         else { return [CGPoint]() }
         
         var finalContour = [CGPoint]()
         
         if startPrice == nil { startPrice = baseBidPrice }
-//                let path = UIBezierPath()
         var askPath = [CGPoint]()
         var bidPath = [CGPoint]()
         
         bidPath.append(CGPoint(x: baseBidPrice - startPrice!, y: 0))
-//        path.move(to: CGPoint(x: baseBidPrice - startPrice!, y: 0))
         
         var totalBid = 0.0
         var lastPrice = 0.0
         var lastAmount = 0.0
         for (price, amount) in sortedBids {
             totalBid += Double(amount as! String)!
-//            path.addLine(to: CGPoint(x: Double(price)! - startPrice!, y: totalBid))
             bidPath.append(CGPoint(x: Double(price)! - startPrice!, y: totalBid))
             lastPrice = Double(price)! - startPrice!
             lastAmount = totalBid
-//            print("x \(Double(price)! - baseBidPrice) y: \(totalBid)")
         }
         bidPath.append(CGPoint(x: lastPrice-150, y: lastAmount))
         finalContour.append(contentsOf: bidPath.reversed())
-//        path.addLine(to: CGPoint(x: lastPrice-150, y: lastAmount))
-//        path.addLine(to: CGPoint(x: lastPrice-150, y: 0))
-//        path.addLine(to: CGPoint(x: baseBidPrice - startPrice!, y: 0))
         
         askPath.append(CGPoint(x: baseAskPrice - startPrice!, y: 0))
-//        path.move(to: CGPoint(x: baseAskPrice - startPrice!, y: 0))
         var totalAsk = 0.0
         for (price, amount) in sortedAsks {
             totalAsk += Double(amount as! String)!
             askPath.append(CGPoint(x: Double(price)! - startPrice!, y: totalAsk))
-//            path.addLine(to: CGPoint(x: Double(price)! - startPrice!, y: totalAsk))
             lastPrice = Double(price)! - startPrice!
             lastAmount = totalAsk
         }
@@ -312,15 +281,118 @@ class GameViewController: UIViewController {
         finalContour.append(contentsOf: askPath)
         
         let center = (baseAskPrice + baseBidPrice)/2 - startPrice!
+        if currentCenters.count != 0 && priceNodes.count != 0 {
+            let curPrice = Double(currentCenters.first!) + startPrice!
+
+            let price = curPrice
+            let price2 = 25*Int(price/25)
+            let price1 = price2 - 25
+            let price0 = price1 - 25
+            let price3 = price2 + 25
+            let price4 = price3 + 25
+            let price5 = price4 + 25
+            
+            let p0x = Double(price0) - startPrice!
+            let p1x = Double(price1) - startPrice!
+            let p2x = Double(price2) - startPrice!
+            let p3x = Double(price3) - startPrice!
+            let p4x = Double(price4) - startPrice!
+            let p5x = Double(price5) - startPrice!
+            
+            //let nodes = [priceNode0, priceNode1, priceNode2, priceNode3, priceNode4, priceNode5]
+            let prices = [price0, price1, price2, price3, price4, price5]
+            let xs = [p0x, p1x, p2x, p3x, p4x, p5x]
+            
+            var newNodes = [SCNNode]()
+            var newLineNodes = [SCNNode]()
+            for i in 0..<prices.count {
+                let textGeo = SCNText(string: "\(prices[i])", extrusionDepth: 0)
+                let mat = SCNMaterial()
+                mat.diffuse.contents = UIColor.cyan
+                mat.isDoubleSided = true
+                textGeo.materials = [mat]
+                textGeo.alignmentMode = "center"
+                let node = priceNodes[i]
+                node.removeFromParentNode()
+                let lineNode = priceLineNodes[i]
+                lineNode.removeFromParentNode()
+                
+                let textNode = SCNNode(geometry: textGeo)
+                textNode.scale = SCNVector3(0.5, 0.5, 0.5)
+                textNode.position = SCNVector3(xs[i] - Double(textNode.boundingBox.max.x/2), 80, -200)
+                textNode.opacity = 0.7
+                newNodes.append(textNode)
+                
+                // building line node
+                let linePlane = SCNPlane(width: 1, height: 100)
+                linePlane.materials = [mat]
+                let newLineNode = SCNNode(geometry: linePlane)
+                newLineNode.opacity = 0.4
+                newLineNode.position = SCNVector3(Double(textNode.boundingBox.max.x/2), -80, 0)
+                textNode.addChildNode(newLineNode)
+                newLineNodes.append(newLineNode)
+                
+                self.scnView.scene?.rootNode.addChildNode(textNode)
+            }
+            priceNodes = newNodes
+            priceLineNodes = newLineNodes
+        }
+        else {
+            let price = startPrice!
+            let price2 = 25*Int(price/25)
+            let price1 = price2 - 25
+            let price0 = price1 - 25
+            let price3 = price2 + 25
+            let price4 = price3 + 25
+            let price5 = price4 + 25
+            
+            let p0x = Double(price0) - startPrice!
+            let p1x = Double(price1) - startPrice!
+            let p2x = Double(price2) - startPrice!
+            let p3x = Double(price3) - startPrice!
+            let p4x = Double(price4) - startPrice!
+            let p5x = Double(price5) - startPrice!
+            
+            let prices = [price0, price1, price2, price3, price4, price5]
+            let xs = [p0x, p1x, p2x, p3x, p4x, p5x]
+            
+            var newLineNodes = [SCNNode]()
+            for i in 0..<prices.count {
+                let textGeo = SCNText(string: "\(prices[i])", extrusionDepth: 0)
+                let mat = SCNMaterial()
+                mat.diffuse.contents = UIColor.cyan
+                mat.isDoubleSided = true
+                textGeo.materials = [mat]
+                let textNode = SCNNode(geometry: textGeo)
+                textNode.scale = SCNVector3(0.5, 0.5, 0.5)
+                textNode.position = SCNVector3(xs[i] - Double(textNode.boundingBox.max.x/2), 80, -200)
+                priceNodes.append(textNode)
+                
+                // building line node
+                let linePlane = SCNPlane(width: 1, height: 100)
+                let newLineNode = SCNNode(geometry: linePlane)
+                newLineNode.position = SCNVector3(Double(textNode.boundingBox.max.x/2), -80, 0)
+                textNode.addChildNode(newLineNode)
+                newLineNodes.append(newLineNode)
+                
+                self.scnView.scene?.rootNode.addChildNode(textNode)
+            }
+            priceLineNodes = newLineNodes
+            
+            //textGeo.font = UIFont.systemFont(ofSize: 10)
+            //textGeo.materials = [mat]
+            
+        }
         currentCenters.append(Float(center))
         if currentCenters.count > visibleFrames+1 { currentCenters.removeFirst() }
+        let currentPrice = (baseAskPrice + baseBidPrice)/2
         
         return finalContour
-//        path.addLine(to: CGPoint(x: lastPrice+150, y: lastAmount))
-//        path.addLine(to: CGPoint(x: lastPrice+150, y: 0))
-//        path.addLine(to: CGPoint(x: baseAskPrice - startPrice!, y: 0))
     }
     
+    var priceLineNodes = [SCNNode]()
+    var priceNodes = [SCNNode]()
+        
     var startPrice: Double? = nil
     
     func buildFrameNode(doc: [String:Any]) -> SCNNode {
@@ -348,7 +420,6 @@ class GameViewController: UIViewController {
             path.addLine(to: CGPoint(x: Double(price)! - startPrice!, y: totalBid))
             lastPrice = Double(price)! - startPrice!
             lastAmount = totalBid
-//            print("x \(Double(price)! - baseBidPrice) y: \(totalBid)")
         }
         path.addLine(to: CGPoint(x: lastPrice-150, y: lastAmount))
         path.addLine(to: CGPoint(x: lastPrice-150, y: 0))
