@@ -11,7 +11,7 @@ import QuartzCore
 import SceneKit
 import Firebase
 
-class GameViewController: UIViewController {
+class GameViewController: UIViewController, SCNPhysicsContactDelegate {
     
     @IBOutlet var scnView: SCNView!
     
@@ -30,6 +30,8 @@ class GameViewController: UIViewController {
     @IBOutlet var pauseScoreView: UIView!
     
     var db: Firestore? = nil
+    
+    var mask = 1
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -56,13 +58,23 @@ class GameViewController: UIViewController {
         cameraNode.addChildNode(lightNode)
         
         let ship = scene.rootNode.childNode(withName: "ship", recursively: true)!
+        ship.physicsBody = SCNPhysicsBody(type: .static, shape: SCNPhysicsShape(node: ship, options: nil))
+        mask = ship.physicsBody!.collisionBitMask
+        ship.physicsBody!.contactTestBitMask = mask
+        ship.physicsBody!.categoryBitMask = mask
         ship.opacity = 0
         ship.addChildNode(cameraNode)
 //        ship.runAction(SCNAction.repeatForever(SCNAction.rotateBy(x: 0, y: 2, z: 0, duration: 1)))
         
+        
+//        let partScene = SCNScene(named: "art.scnassets/collection.scn")!
+//        let booster = partScene.rootNode.childNodes[0].particleSystems!.first!
+//        ship.addParticleSystem(booster)
+        
         scene.fogEndDistance = 400
         scene.fogStartDistance = 300
         scnView.scene = scene
+        scnView.scene!.physicsWorld.contactDelegate = self
         
         scnView.allowsCameraControl = false
         scnView.showsStatistics = false
@@ -125,6 +137,7 @@ class GameViewController: UIViewController {
             self.pauseMenu.isHidden = false
             self.pauseMenu.alpha = 1
         }
+        startSpectating()
     }
     
     func incrementTimerUntilCrash() {
@@ -171,6 +184,37 @@ class GameViewController: UIViewController {
         }
     }
     
+    func physicsWorld(_ world: SCNPhysicsWorld, didBegin contact: SCNPhysicsContact) {
+        guard let bodyA = contact.nodeA.physicsBody, let bodyB = contact.nodeB.physicsBody
+        else { return }
+        print("a: category: \(bodyA.categoryBitMask), contact: \(bodyA.contactTestBitMask), collision: \(bodyA.collisionBitMask)")
+        print("B: category: \(bodyB.categoryBitMask), contact: \(bodyB.contactTestBitMask), collision: \(bodyB.collisionBitMask)")
+        
+        if self.isAlive {
+            self.isAlive = false
+            DispatchQueue.main.async {
+                self.gameOver()
+            }
+        }
+        
+    }
+    
+    func gameOver() {
+        if score != 0 {
+            pauseScoreView.isHidden = false
+            pauseScoreLabel.text = String(score)
+        }
+        else {
+            pauseScoreView.isHidden = true
+        }
+        UIView.animate(withDuration: 1) {
+            self.pauseMenu.isHidden = false
+            self.pauseMenu.alpha = 1
+        }
+        startSpectating()
+        score = 0
+    }
+    
     func loadFrames() {
         
     }
@@ -180,34 +224,82 @@ class GameViewController: UIViewController {
     var currentCenters = [Float]()
     var visibleFrames = Int()
     
+    
+    
+    var frameBuffer = [SCNNode]()
+    var shouldReleaseFrames = false
+    let bufferInterval: TimeInterval = 6.0
+    
+    func openFrameBuffer() {
+        shouldReleaseFrames = true
+        releaseFrames()
+    }
+    
+    func closeFrameBuffer() {
+        shouldReleaseFrames = false
+    }
+    
+    func releaseFrames() {
+        if !shouldReleaseFrames { return }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now()+6) {
+            self.releaseFrames()
+        }
+    }
+    
+    var speedMultiplier: Float = 1.0
+    var lastSpeedMultiplier: Float = 1.0
+    var lastNode: SCNNode? = nil
+    
     func watchFrames() {
         lastContour = nil
-        var timeBefore = Date()
         db?.collection("depth2").order(by: "timestamp", descending: true).limit(to: 1).addSnapshotListener({ (snapshot, error) in
             guard let snap = snapshot,
                 let doc = snap.documents.first
             else { return }
             
-            let distance: Float = 400.0
-            let duration = 65.5
-            self.visibleFrames = Int(duration/5) - 3
             
-            let timeNow = Date()
-            print("time since last doc: \(timeNow.timeIntervalSince(timeBefore))")
-            timeBefore = timeNow
+            let distanceConstant: Float = 400.0
             
-            if self.currentCenters.count > self.visibleFrames {
-                
-            }
+            let duration = 30.5
+            self.visibleFrames = Int(duration/5) - 2
+//            let frames = self.scnView.scene!.rootNode.childNodes.filter { (node) -> Bool in
+//                return (node.name ?? "not") == "band"
+//            }
+//            print("actual \(frames.count), visible: \(self.visibleFrames)")
+            
+            
+            let distance = distanceConstant * self.speedMultiplier
+            let targetDistance: Float = distance + 40.0
+            
+            // distance since last doc = travelDistance * (timeDiff)/duration
             
             let newContour = self.buildContour(doc: doc.data())
             if let lastContour = self.lastContour {
+                
+                var position = SCNVector3()
+                if let lastNode = self.lastNode {
+                    let oldBandWidth = CGFloat(lastNode.presentation.boundingBox.max.z - lastNode.presentation.boundingBox.min.z)
+                    let oldDistance = CGFloat(targetDistance+lastNode.presentation.position.z)
+                    let newBW = oldDistance - oldBandWidth
+                    self.bandWidth = newBW
+                    let newZ = -lastNode.presentation.position.z + Float(oldBandWidth)
+                    position = SCNVector3Make(0, 0, -newZ)
+                }
+                else {
+                    self.bandWidth = CGFloat(targetDistance - distance)
+                    position = SCNVector3Make(0, 0, -distance)
+                }
+                
                 let node = self.buildBandNode(firstContour: newContour, secondContour: lastContour)
-                node.position = SCNVector3Make(0, 0, -distance)
-                self.moveFrame(node: node, distance: Double(distance+55), duration: duration)
+                node.position = position
+                
+                self.moveFrame(node: node, distance: Double(targetDistance+10), duration: duration)
                 self.fadeInNode(node: node, finalOpacity: 0.7, duration: 3)
                 self.removeFrameAfter(node: node, duration: duration)
+                node.name = "band"
                 self.scnView.scene?.rootNode.addChildNode(node)
+                self.lastNode = node
             }
             self.lastContour = newContour
         })
@@ -232,6 +324,8 @@ class GameViewController: UIViewController {
         node.runAction(action)
     }
     
+    var bandWidth: CGFloat = 40.0
+    
     func buildBandNode(firstContour first: [CGPoint], secondContour second: [CGPoint]) -> SCNNode {
         let isFirstMax = first.count > second.count
         let max = isFirstMax ? first.count : second.count
@@ -244,9 +338,9 @@ class GameViewController: UIViewController {
         for index in 0..<max {
             if index != 0 {
                 vertices.append(contentsOf: [
-                    SCNVector3(first[index].x, first[index].y, -40),
+                    SCNVector3(first[index].x, first[index].y, -bandWidth),
                     SCNVector3(second[index].x, second[index].y, 0),
-                    SCNVector3(first[index-1].x, first[index-1].y, -40),
+                    SCNVector3(first[index-1].x, first[index-1].y, -bandWidth),
                     SCNVector3(second[index-1].x, second[index-1].y, 0),
                 ])
                 indices.append(contentsOf: [
@@ -267,7 +361,10 @@ class GameViewController: UIViewController {
         mat.isDoubleSided = true
         geometry.materials = [mat]
         let node = SCNNode(geometry: geometry)
-        
+        node.physicsBody = SCNPhysicsBody(type: SCNPhysicsBodyType.static, shape: SCNPhysicsShape(geometry: geometry, options: [SCNPhysicsShape.Option.type: SCNPhysicsShape.ShapeType.concavePolyhedron]))
+        node.physicsBody!.collisionBitMask = self.mask
+        node.physicsBody!.contactTestBitMask = self.mask
+        node.physicsBody!.categoryBitMask = self.mask
         return node
     }
     
@@ -403,7 +500,9 @@ class GameViewController: UIViewController {
                 
                 // building line node
                 let linePlane = SCNPlane(width: 1, height: 100)
+                linePlane.materials = [mat]
                 let newLineNode = SCNNode(geometry: linePlane)
+                newLineNode.opacity = 0.4
                 newLineNode.position = SCNVector3(Double(textNode.boundingBox.max.x/2), -80, 0)
                 textNode.addChildNode(newLineNode)
                 newLineNodes.append(newLineNode)
