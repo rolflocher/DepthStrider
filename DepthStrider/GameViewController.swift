@@ -23,6 +23,12 @@ class GameViewController: UIViewController {
     
     @IBOutlet var pauseImage: UIImageView!
     
+    @IBOutlet var scoreLabel: UILabel!
+    
+    @IBOutlet var pauseScoreLabel: UILabel!
+    
+    @IBOutlet var pauseScoreView: UIView!
+    
     var db: Firestore? = nil
 
     override func viewDidLoad() {
@@ -82,7 +88,11 @@ class GameViewController: UIViewController {
         watchFrames()
     }
     
+    var isAlive = true
+    var score = 0
+    
     @objc func continueTapped() {
+        isAlive = true
         UIView.animate(withDuration: 1, animations: {
             self.pauseMenu.alpha = 0
         }) { (_) in
@@ -103,9 +113,26 @@ class GameViewController: UIViewController {
     }
     
     @objc func pauseTapped() {
+        isAlive = false
+        if score != 0 {
+            pauseScoreView.isHidden = false
+            pauseScoreLabel.text = String(score)
+        }
+        else {
+            pauseScoreView.isHidden = true
+        }
         UIView.animate(withDuration: 1) {
             self.pauseMenu.isHidden = false
             self.pauseMenu.alpha = 1
+        }
+    }
+    
+    func incrementTimerUntilCrash() {
+        if !isAlive { return }
+        score += 1
+        DispatchQueue.main.asyncAfter(deadline: .now()+0.333) {
+            self.scoreLabel.text = "Score: \(self.score)"
+            self.incrementTimerUntilCrash()
         }
     }
     
@@ -114,6 +141,7 @@ class GameViewController: UIViewController {
         //let action = SCNAction.move(to: <#T##SCNVector3#>, duration: <#T##TimeInterval#>)
         fadeInNode(node: ship, finalOpacity: 1, duration: 3)
         shouldStopFollowingFrames = true
+        incrementTimerUntilCrash()
     }
     
     func startSpectating() {
@@ -154,6 +182,7 @@ class GameViewController: UIViewController {
     
     func watchFrames() {
         lastContour = nil
+        var timeBefore = Date()
         db?.collection("depth2").order(by: "timestamp", descending: true).limit(to: 1).addSnapshotListener({ (snapshot, error) in
             guard let snap = snapshot,
                 let doc = snap.documents.first
@@ -162,6 +191,10 @@ class GameViewController: UIViewController {
             let distance: Float = 400.0
             let duration = 65.5
             self.visibleFrames = Int(duration/5) - 3
+            
+            let timeNow = Date()
+            print("time since last doc: \(timeNow.timeIntervalSince(timeBefore))")
+            timeBefore = timeNow
             
             if self.currentCenters.count > self.visibleFrames {
                 
