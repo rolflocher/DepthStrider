@@ -182,11 +182,11 @@ class GameViewController: UIViewController, SCNPhysicsContactDelegate {
                 var ref = ship.position
                 ref.x = currentCenters[2]
                 ref.y = 20
-                let action = SCNAction.move(to: ref, duration: 1)
+                let action = SCNAction.move(to: ref, duration: 5)
                 ship.runAction(action)
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now()+1) {
+        DispatchQueue.main.asyncAfter(deadline: .now()+5) {
             self.followFrames()
         }
     }
