@@ -40,6 +40,30 @@
                                     <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
+                                        <view hidden="YES" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="8Xk-EH-jqN">
+                                            <rect key="frame" x="52" y="303" width="310" height="181"/>
+                                            <subviews>
+                                                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Score" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="K31-gv-bzK">
+                                                    <rect key="frame" x="125.5" y="80" width="59.5" height="68"/>
+                                                    <fontDescription key="fontDescription" name="Zapfino" family="Zapfino" pointSize="20"/>
+                                                    <color key="textColor" white="0.33333333329999998" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                    <nil key="highlightedColor"/>
+                                                </label>
+                                                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="9999" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" minimumFontSize="20" adjustsLetterSpacingToFitWidth="YES" translatesAutoresizingMaskIntoConstraints="NO" id="4dK-iU-XeB">
+                                                    <rect key="frame" x="79" y="4.5" width="152" height="75.5"/>
+                                                    <fontDescription key="fontDescription" type="system" pointSize="63"/>
+                                                    <color key="textColor" red="0.0" green="0.99143940210000003" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                                    <nil key="highlightedColor"/>
+                                                </label>
+                                            </subviews>
+                                            <constraints>
+                                                <constraint firstItem="K31-gv-bzK" firstAttribute="top" secondItem="4dK-iU-XeB" secondAttribute="bottom" id="G61-Wx-i4y"/>
+                                                <constraint firstItem="4dK-iU-XeB" firstAttribute="centerX" secondItem="8Xk-EH-jqN" secondAttribute="centerX" id="LSA-Ns-V8Y"/>
+                                                <constraint firstAttribute="height" constant="181" id="lbe-KN-UV2"/>
+                                                <constraint firstItem="K31-gv-bzK" firstAttribute="centerX" secondItem="8Xk-EH-jqN" secondAttribute="centerX" id="v9H-0C-3Gy"/>
+                                                <constraint firstAttribute="bottom" secondItem="K31-gv-bzK" secondAttribute="bottom" constant="33" id="y7a-Tw-stw"/>
+                                            </constraints>
+                                        </view>
                                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Depth Strider" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="cKG-a3-ayy">
                                             <rect key="frame" x="15" y="91" width="384" height="143"/>
                                             <constraints>
@@ -68,30 +92,6 @@
                                             <color key="textColor" white="0.33333333333333331" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                             <nil key="highlightedColor"/>
                                         </label>
-                                        <view hidden="YES" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="8Xk-EH-jqN">
-                                            <rect key="frame" x="52" y="303" width="310" height="181"/>
-                                            <subviews>
-                                                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Score" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="K31-gv-bzK">
-                                                    <rect key="frame" x="125.5" y="80" width="59.5" height="68"/>
-                                                    <fontDescription key="fontDescription" name="Zapfino" family="Zapfino" pointSize="20"/>
-                                                    <color key="textColor" white="0.33333333329999998" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-                                                    <nil key="highlightedColor"/>
-                                                </label>
-                                                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="9999" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" minimumFontSize="20" adjustsLetterSpacingToFitWidth="YES" translatesAutoresizingMaskIntoConstraints="NO" id="4dK-iU-XeB">
-                                                    <rect key="frame" x="79" y="4.5" width="152" height="75.5"/>
-                                                    <fontDescription key="fontDescription" type="system" pointSize="63"/>
-                                                    <color key="textColor" red="0.0" green="0.99143940210000003" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                                    <nil key="highlightedColor"/>
-                                                </label>
-                                            </subviews>
-                                            <constraints>
-                                                <constraint firstItem="K31-gv-bzK" firstAttribute="top" secondItem="4dK-iU-XeB" secondAttribute="bottom" id="G61-Wx-i4y"/>
-                                                <constraint firstItem="4dK-iU-XeB" firstAttribute="centerX" secondItem="8Xk-EH-jqN" secondAttribute="centerX" id="LSA-Ns-V8Y"/>
-                                                <constraint firstAttribute="height" constant="181" id="lbe-KN-UV2"/>
-                                                <constraint firstItem="K31-gv-bzK" firstAttribute="centerX" secondItem="8Xk-EH-jqN" secondAttribute="centerX" id="v9H-0C-3Gy"/>
-                                                <constraint firstAttribute="bottom" secondItem="K31-gv-bzK" secondAttribute="bottom" constant="33" id="y7a-Tw-stw"/>
-                                            </constraints>
-                                        </view>
                                     </subviews>
                                     <constraints>
                                         <constraint firstItem="8Xk-EH-jqN" firstAttribute="top" secondItem="cKG-a3-ayy" secondAttribute="bottom" constant="69" id="2OH-RM-Avo"/>
